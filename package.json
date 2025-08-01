@@ -14,8 +14,8 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.2",
-    "@capacitor/barcode-scanner": "latest",
-    "@capacitor/core": "^6.1.2",
+    "@capacitor/barcode-scanner": "^2.0.3",
+    "@capacitor/core": "^7.4.2",
     "@hookform/resolvers": "^3.9.0",
     "@ionic/react": "^8.4.1",
     "@ionic/react-router": "^8.4.1",
