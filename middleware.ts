@@ -1,5 +1,5 @@
-import { auth } from "next-auth"
 import { NextResponse } from "next/server"
+import { auth } from "@/lib/auth-wrapper"
 
 export default auth((req) => {
   const { auth: session } = req
