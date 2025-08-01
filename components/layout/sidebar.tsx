@@ -1,9 +1,7 @@
 "use client"
 
-import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import {
   IonMenu,
   IonHeader,
@@ -14,10 +12,11 @@ import {
   IonItem,
   IonIcon,
   IonLabel,
-  IonMenuButton,
   IonButton,
   IonAvatar,
-  IonText
+  IonText,
+  IonMenuToggle,
+  IonButtons
 } from '@ionic/react'
 import {
   homeOutline,
@@ -29,7 +28,7 @@ import {
   personCircleOutline,
   documentTextOutline,
   logOutOutline,
-  settingsOutline
+  closeOutline
 } from 'ionicons/icons'
 
 const menuItems = [
@@ -45,16 +44,28 @@ const menuItems = [
 
 export function Sidebar() {
   const { data: session } = useSession()
+  const router = useRouter()
   const pathname = usePathname()
   
   const userRole = session?.user?.role || 'User'
   const allowedItems = menuItems.filter(item => item.roles.includes(userRole))
+
+  const handleNavigation = (path: string) => {
+    router.push(path)
+  }
 
   return (
     <IonMenu contentId="main-content" type="overlay">
       <IonHeader>
         <IonToolbar color="primary">
           <IonTitle>Asset Manager</IonTitle>
+          <IonButtons slot="end">
+            <IonMenuToggle>
+              <IonButton fill="clear" color="light">
+                <IonIcon icon={closeOutline} />
+              </IonButton>
+            </IonMenuToggle>
+          </IonButtons>
         </IonToolbar>
       </IonHeader>
       
@@ -63,7 +74,7 @@ export function Sidebar() {
           <div className="flex items-center space-x-3">
             <IonAvatar>
               <img 
-                src={session?.user?.image || "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=64&h=64&dpr=1"} 
+                src="https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg?auto=compress&cs=tinysrgb&w=64&h=64&dpr=1"
                 alt="Profile" 
               />
             </IonAvatar>
@@ -80,21 +91,24 @@ export function Sidebar() {
 
         <IonList>
           {allowedItems.map((item) => (
-            <IonItem
-              key={item.path}
-              routerLink={item.path}
-              routerDirection="none"
-              className={pathname === item.path ? 'bg-blue-50' : ''}
-            >
-              <IonIcon icon={item.icon} slot="start" />
-              <IonLabel>{item.label}</IonLabel>
-            </IonItem>
+            <IonMenuToggle key={item.path} autoHide={true}>
+              <IonItem
+                button
+                onClick={() => handleNavigation(item.path)}
+                className={pathname === item.path ? 'bg-blue-50' : ''}
+              >
+                <IonIcon icon={item.icon} slot="start" />
+                <IonLabel>{item.label}</IonLabel>
+              </IonItem>
+            </IonMenuToggle>
           ))}
           
-          <IonItem button onClick={() => signOut()}>
-            <IonIcon icon={logOutOutline} slot="start" />
-            <IonLabel>Logout</IonLabel>
-          </IonItem>
+          <IonMenuToggle autoHide={true}>
+            <IonItem button onClick={() => signOut()}>
+              <IonIcon icon={logOutOutline} slot="start" />
+              <IonLabel>Logout</IonLabel>
+            </IonItem>
+          </IonMenuToggle>
         </IonList>
       </IonContent>
     </IonMenu>
