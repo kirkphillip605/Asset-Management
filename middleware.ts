@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server"
-import { auth } from "@/lib/auth-wrapper"
+import { auth } from "@/lib/auth"
 
 export default auth((req) => {
-  const { auth: session } = req
+  const session = req.auth
   const isAuth = !!session
   const isAuthPage = req.nextUrl.pathname.startsWith('/login')
 

@@ -6,7 +6,7 @@ const nextConfig = {
   images: { 
     unoptimized: true 
   },
-  // Disable Turbopack for now due to Ionic compatibility issues
+  // Disable SSR for Ionic components to prevent hydration issues
   experimental: {
     esmExternals: 'loose',
   },
@@ -37,6 +37,8 @@ const nextConfig = {
     return config
   },
   transpilePackages: ['@ionic/react', '@ionic/core', '@stencil/core'],
+  // Add this to help with Ionic SSR issues
+  reactStrictMode: false,
 }
 
 module.exports = nextConfig
