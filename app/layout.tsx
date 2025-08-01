@@ -1,7 +1,7 @@
 import './globals.css'
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
-import { AuthProvider } from '@/components/providers/auth-provider'
+import { SessionProvider } from 'next-auth/react'
 import { IonicSetup } from '@/components/ionic-setup'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -19,11 +19,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthProvider>
+        <SessionProvider>
           <IonicSetup>
             {children}
           </IonicSetup>
-        </AuthProvider>
+        </SessionProvider>
       </body>
     </html>
   )

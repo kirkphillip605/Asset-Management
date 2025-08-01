@@ -6,6 +6,16 @@ const nextConfig = {
   images: { 
     unoptimized: true 
   },
+  experimental: {
+    turbo: {
+      rules: {
+        '*.scss': {
+          loaders: ['sass-loader'],
+          as: '*.css',
+        },
+      },
+    },
+  },
   // Removed output: 'export' - this app needs API routes and middleware
 }
 

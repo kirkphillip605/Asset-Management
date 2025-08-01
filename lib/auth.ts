@@ -1,10 +1,10 @@
-import { NextAuthOptions } from "next-auth"
+import { NextAuthConfig } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import { compare } from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 
-export const authOptions: NextAuthOptions = {
+export const authConfig: NextAuthConfig = {
   adapter: PrismaAdapter(prisma),
   session: {
     strategy: "jwt",
@@ -23,7 +23,7 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({
           where: {
-            email: credentials.email
+            email: credentials.email as string
           }
         })
 
@@ -35,7 +35,7 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
-        const isPasswordValid = await compare(credentials.password, user.passwordHash)
+        const isPasswordValid = await compare(credentials.password as string, user.passwordHash)
 
         if (!isPasswordValid) {
           // Increment failed login attempts
@@ -78,7 +78,7 @@ export const authOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
-      if (token) {
+      if (token && session.user) {
         session.user.id = token.sub!
         session.user.role = token.role as string
       }
