@@ -1,0 +1,354 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  Admin
+  Manager
+  User
+}
+
+model User {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                 String?
+  email                String?   @unique
+  emailVerified        DateTime? @map("email_verified")
+  image                String?
+  role                 UserRole  @default(User)
+  passwordHash         String?   @map("password_hash")
+  lastLogin            DateTime? @map("last_login")
+  failedLoginAttempts  Int       @default(0) @map("failed_login_attempts")
+  isLocked             Boolean   @default(false) @map("is_locked")
+  lockedUntil          DateTime? @map("locked_until")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+  createdById          String?   @map("created_by") @db.Uuid
+  updatedById          String?   @map("updated_by") @db.Uuid
+
+  // Relations
+  createdBy            User?     @relation("UserCreatedBy", fields: [createdById], references: [id])
+  updatedBy            User?     @relation("UserUpdatedBy", fields: [updatedById], references: [id])
+  usersCreated         User[]    @relation("UserCreatedBy")
+  usersUpdated         User[]    @relation("UserUpdatedBy")
+  
+  accounts             Account[]
+  sessions             Session[]
+  
+  warehousesCreated    Warehouse[] @relation("WarehouseCreatedBy")
+  warehousesUpdated    Warehouse[] @relation("WarehouseUpdatedBy")
+  venuesCreated        Venue[]     @relation("VenueCreatedBy")
+  venuesUpdated        Venue[]     @relation("VenueUpdatedBy")
+  contactsCreated      Contact[]   @relation("ContactCreatedBy")
+  contactsUpdated      Contact[]   @relation("ContactUpdatedBy")
+  gigsCreated          Gig[]       @relation("GigCreatedBy")
+  gigsUpdated          Gig[]       @relation("GigUpdatedBy")
+  
+  gigStaff             GigStaff[]
+  gigAssetsAssigned    GigAsset[] @relation("GigAssetAssignedBy")
+  gigAssetsCheckedOut  GigAsset[] @relation("GigAssetCheckedOutBy")
+  gigAssetsCheckedIn   GigAsset[] @relation("GigAssetCheckedInBy")
+  
+  assetConditionLogs   AssetConditionLog[]
+  assetTransfers       AssetTransfer[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String  @map("user_id") @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refreshToken      String? @map("refresh_token") @db.Text
+  accessToken       String? @map("access_token") @db.Text
+  expiresAt         Int?    @map("expires_at")
+  tokenType         String? @map("token_type")
+  scope             String?
+  idToken           String? @map("id_token") @db.Text
+  sessionState      String? @map("session_state")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id") @db.Uuid
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Brand {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String    @unique
+  description String?
+  website     String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  products    Product[]
+
+  @@map("brands")
+}
+
+model ProductType {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  products    Product[]
+
+  @@map("product_types")
+}
+
+model Vendor {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String    @unique
+  description  String?
+  website      String?
+  contactEmail String?   @map("contact_email")
+  contactPhone String?   @map("contact_phone")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  
+  assets       Asset[]
+
+  @@map("vendors")
+}
+
+model Product {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name         String
+  brandId      String?      @map("brand_id") @db.Uuid
+  typeId       String?      @map("type_id") @db.Uuid
+  description  String?
+  modelNumber  String?      @map("model_number")
+  defaultPrice Decimal?     @map("default_price") @db.Decimal(10, 2)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  
+  brand        Brand?       @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  type         ProductType? @relation(fields: [typeId], references: [id], onDelete: SetNull)
+  assets       Asset[]
+
+  @@unique([name, brandId, modelNumber])
+  @@index([brandId])
+  @@index([typeId])
+  @@map("products")
+}
+
+model Warehouse {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  description String?
+  address1    String
+  address2    String?
+  city        String?
+  state       String?
+  zip         String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdById String?   @map("created_by") @db.Uuid
+  updatedById String?   @map("updated_by") @db.Uuid
+  
+  createdBy   User?     @relation("WarehouseCreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?     @relation("WarehouseUpdatedBy", fields: [updatedById], references: [id])
+  
+  assets              Asset[]
+  transfersFrom       AssetTransfer[] @relation("TransferFromWarehouse")
+  transfersTo         AssetTransfer[] @relation("TransferToWarehouse")
+
+  @@map("warehouses")
+}
+
+model Asset {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  productId      String    @map("product_id") @db.Uuid
+  assetTag       String    @unique @map("asset_tag")
+  serialNumber   String?   @map("serial_number")
+  purchaseDate   DateTime? @map("purchase_date") @db.Date
+  purchasePrice  Decimal?  @map("purchase_price") @db.Decimal(10, 2)
+  vendorId       String?   @map("vendor_id") @db.Uuid
+  barcode        String?
+  notes          String?
+  location       String?
+  condition      String?   @default("good")
+  status         String?   @default("available")
+  warehouseId    String    @map("warehouse_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  
+  product        Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  vendor         Vendor?   @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  warehouse      Warehouse @relation(fields: [warehouseId], references: [id])
+  
+  gigAssets      GigAsset[]
+  conditionLogs  AssetConditionLog[]
+  transfers      AssetTransfer[]
+
+  @@index([assetTag])
+  @@index([status])
+  @@index([warehouseId])
+  @@map("assets")
+}
+
+model Venue {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  address1    String
+  address2    String?
+  city        String?
+  state       String?
+  zip         String?
+  phone       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdById String?   @map("created_by") @db.Uuid
+  updatedById String?   @map("updated_by") @db.Uuid
+  
+  createdBy   User?     @relation("VenueCreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?     @relation("VenueUpdatedBy", fields: [updatedById], references: [id])
+  
+  gigs        Gig[]
+
+  @@map("venues")
+}
+
+model Contact {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  phone       String?
+  email       String?
+  notes       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdById String?   @map("created_by") @db.Uuid
+  updatedById String?   @map("updated_by") @db.Uuid
+  
+  createdBy   User?     @relation("ContactCreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?     @relation("ContactUpdatedBy", fields: [updatedById], references: [id])
+  
+  gigs        Gig[]
+
+  @@map("contacts")
+}
+
+model Gig {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  startTime   DateTime  @map("start_time")
+  endTime     DateTime  @map("end_time")
+  venueId     String?   @map("venue_id") @db.Uuid
+  contactId   String?   @map("contact_id") @db.Uuid
+  notes       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  createdById String?   @map("created_by") @db.Uuid
+  updatedById String?   @map("updated_by") @db.Uuid
+  
+  venue       Venue?    @relation(fields: [venueId], references: [id], onDelete: SetNull)
+  contact     Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  createdBy   User?     @relation("GigCreatedBy", fields: [createdById], references: [id])
+  updatedBy   User?     @relation("GigUpdatedBy", fields: [updatedById], references: [id])
+  
+  staff       GigStaff[]
+  assets      GigAsset[]
+
+  @@index([startTime, endTime])
+  @@map("gigs")
+}
+
+model GigStaff {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gigId      String   @map("gig_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  
+  gig        Gig      @relation(fields: [gigId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([gigId, userId], name: "no_user_conflict")
+  @@map("gig_staff")
+}
+
+model GigAsset {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  gigId          String    @map("gig_id") @db.Uuid
+  assetId        String    @map("asset_id") @db.Uuid
+  assignedById   String?   @map("assigned_by") @db.Uuid
+  assignedAt     DateTime  @default(now()) @map("assigned_at")
+  checkedOutById String?   @map("checked_out_by") @db.Uuid
+  checkedOutAt   DateTime? @map("checked_out_at")
+  checkedInById  String?   @map("checked_in_by") @db.Uuid
+  checkedInAt    DateTime? @map("checked_in_at")
+  status         String?   @default("assigned")
+  
+  gig            Gig       @relation(fields: [gigId], references: [id], onDelete: Cascade)
+  asset          Asset     @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  assignedBy     User?     @relation("GigAssetAssignedBy", fields: [assignedById], references: [id])
+  checkedOutBy   User?     @relation("GigAssetCheckedOutBy", fields: [checkedOutById], references: [id])
+  checkedInBy    User?     @relation("GigAssetCheckedInBy", fields: [checkedInById], references: [id])
+
+  @@unique([gigId, assetId], name: "no_asset_conflict")
+  @@map("gig_assets")
+}
+
+model AssetConditionLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assetId    String   @map("asset_id") @db.Uuid
+  condition  String
+  notes      String?
+  recordedBy String?  @map("recorded_by") @db.Uuid
+  recordedAt DateTime @default(now()) @map("recorded_at")
+  
+  asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [recordedBy], references: [id])
+
+  @@index([assetId, recordedAt])
+  @@map("asset_condition_logs")
+}
+
+model AssetTransfer {
+  id                String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assetId           String     @map("asset_id") @db.Uuid
+  fromWarehouseId   String?    @map("from_warehouse_id") @db.Uuid
+  toWarehouseId     String     @map("to_warehouse_id") @db.Uuid
+  transferredBy     String?    @map("transferred_by") @db.Uuid
+  transferredAt     DateTime   @default(now()) @map("transferred_at")
+  notes             String?
+  
+  asset             Asset      @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  fromWarehouse     Warehouse? @relation("TransferFromWarehouse", fields: [fromWarehouseId], references: [id])
+  toWarehouse       Warehouse  @relation("TransferToWarehouse", fields: [toWarehouseId], references: [id])
+  user              User?      @relation(fields: [transferredBy], references: [id])
+
+  @@index([assetId, transferredAt])
+  @@map("asset_transfers")
+}
