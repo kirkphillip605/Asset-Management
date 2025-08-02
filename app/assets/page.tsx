@@ -6,11 +6,6 @@ import { useRouter } from 'next/navigation'
 import {
   IonPage,
   IonContent,
-  IonItem,
-  IonLabel,
-  IonIcon,
-  IonButton,
-  IonBadge,
   IonSearchbar,
   IonRefresher,
   IonRefresherContent,
@@ -22,18 +17,18 @@ import {
   IonRow,
   IonCol,
   IonAlert,
-  IonActionSheet
+  IonButton,
+  IonIcon,
+  IonBadge,
+  IonItem,
+  IonLabel
 } from '@ionic/react'
 import {
   cubeOutline,
   addOutline,
-  qrCodeOutline,
-  businessOutline,
-  pricetagOutline,
-  createOutline,
-  trashOutline,
   eyeOutline,
-  ellipsisVerticalOutline
+  createOutline,
+  trashOutline
 } from 'ionicons/icons'
 import { Header } from '@/components/layout/header'
 import { Sidebar } from '@/components/layout/sidebar'
@@ -43,7 +38,7 @@ interface Asset {
   assetTag: string
   serialNumber?: string
   purchaseDate?: string
-  purchasePrice?: number
+  purchasePrice?: number | string
   barcode?: string
   notes?: string
   location?: string
@@ -77,8 +72,6 @@ export default function AssetsPage() {
   const [loading, setLoading] = useState(true)
   const [showDeleteAlert, setShowDeleteAlert] = useState(false)
   const [deleteAssetId, setDeleteAssetId] = useState<string | null>(null)
-  const [showActionSheet, setShowActionSheet] = useState(false)
-  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
 
   const userRole = session?.user?.role || 'User'
   const canManage = ['Admin', 'Manager'].includes(userRole)
@@ -162,9 +155,10 @@ export default function AssetsPage() {
     }
   }
 
-  const handleAssetAction = (asset: Asset) => {
-    setSelectedAsset(asset)
-    setShowActionSheet(true)
+  const formatPrice = (price: number | string | null | undefined) => {
+    if (!price) return 'N/A'
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price
+    return isNaN(numPrice) ? 'N/A' : `$${numPrice.toFixed(2)}`
   }
 
   return (
@@ -253,7 +247,7 @@ export default function AssetsPage() {
                               {asset.product.name}
                             </div>
                             <div className="text-sm text-gray-500">
-                              Tag: {asset.assetTag} • {asset.product.brand?.name}
+                              Tag: {asset.assetTag} • {asset.product.brand?.name || 'No Brand'}
                             </div>
                           </div>
                         </div>
@@ -272,7 +266,7 @@ export default function AssetsPage() {
                         {asset.location && <><br /><span className="text-gray-500">{asset.location}</span></>}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {asset.purchasePrice ? `$${asset.purchasePrice.toFixed(2)}` : 'N/A'}
+                        {formatPrice(asset.purchasePrice)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <IonButton
@@ -322,7 +316,7 @@ export default function AssetsPage() {
                   }
                 </p>
                 {canManage && (
-                  <IonButton routerLink="/assets/create">
+                  <IonButton onClick={() => router.push('/assets/create')}>
                     Add First Asset
                   </IonButton>
                 )}
