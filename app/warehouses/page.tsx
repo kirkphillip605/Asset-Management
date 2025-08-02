@@ -2,15 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import {
   IonPage,
   IonContent,
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardContent,
-  IonItem,
-  IonLabel,
   IonIcon,
   IonButton,
   IonBadge,
@@ -19,15 +14,16 @@ import {
   IonRefresherContent,
   IonFab,
   IonFabButton,
-  IonGrid,
-  IonRow,
-  IonCol
+  IonAlert
 } from '@ionic/react'
 import {
   businessOutline,
   addOutline,
   locationOutline,
-  cubeOutline
+  cubeOutline,
+  eyeOutline,
+  createOutline,
+  trashOutline
 } from 'ionicons/icons'
 import { Header } from '@/components/layout/header'
 import { Sidebar } from '@/components/layout/sidebar'
@@ -48,10 +44,13 @@ interface Warehouse {
 
 export default function WarehousesPage() {
   const { data: session } = useSession()
+  const router = useRouter()
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [filteredWarehouses, setFilteredWarehouses] = useState<Warehouse[]>([])
   const [searchText, setSearchText] = useState('')
   const [loading, setLoading] = useState(true)
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false)
+  const [deleteWarehouseId, setDeleteWarehouseId] = useState<string | null>(null)
 
   const userRole = session?.user?.role || 'User'
   const canManage = ['Admin', 'Manager'].includes(userRole)
@@ -92,6 +91,17 @@ export default function WarehousesPage() {
     event.detail.complete()
   }
 
+  const handleDelete = async () => {
+    if (!deleteWarehouseId) return
+    try {
+      await fetch(`/api/warehouses/${deleteWarehouseId}`, { method: 'DELETE' })
+      await fetchWarehouses()
+    } catch (error) {
+      console.error('Failed to delete warehouse:', error)
+    }
+    setDeleteWarehouseId(null)
+  }
+
   const formatAddress = (warehouse: Warehouse) => {
     const parts = [
       warehouse.address1,
@@ -121,100 +131,129 @@ export default function WarehousesPage() {
             className="mb-4"
           />
 
-          <IonGrid>
-            {filteredWarehouses.map((warehouse) => (
-              <IonRow key={warehouse.id}>
-                <IonCol size="12">
-                  <IonCard>
-                    <IonCardHeader>
-                      <div className="flex justify-between items-start">
-                        <IonCardTitle>{warehouse.name}</IonCardTitle>
+          {/* Warehouses Table */}
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Warehouse
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Address
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Assets
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredWarehouses.map((warehouse) => (
+                    <tr key={warehouse.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {warehouse.name}
+                        </div>
+                        {warehouse.description && (
+                          <div className="text-sm text-gray-500">
+                            {warehouse.description}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatAddress(warehouse)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <IonBadge color="primary">
                           {warehouse._count.assets} assets
                         </IonBadge>
-                      </div>
-                      {warehouse.description && (
-                        <p className="text-sm text-gray-600 mt-1">
-                          {warehouse.description}
-                        </p>
-                      )}
-                    </IonCardHeader>
-                    
-                    <IonCardContent>
-                      <IonItem>
-                        <IonIcon icon={locationOutline} slot="start" />
-                        <IonLabel>
-                          <h3>Address</h3>
-                          <p>{formatAddress(warehouse)}</p>
-                        </IonLabel>
-                      </IonItem>
-                      
-                      <IonItem>
-                        <IonIcon icon={cubeOutline} slot="start" />
-                        <IonLabel>
-                          <h3>Assets</h3>
-                          <p>{warehouse._count.assets} items stored</p>
-                        </IonLabel>
-                      </IonItem>
-                      
-                      <div className="flex gap-2 mt-4">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <IonButton
-                          routerLink={`/warehouses/${warehouse.id}`}
-                          fill="outline"
+                          fill="clear"
                           size="small"
+                          onClick={() => router.push(`/warehouses/${warehouse.id}`)}
                         >
-                          View Assets
+                          <IonIcon icon={eyeOutline} />
                         </IonButton>
-                        
                         {canManage && (
-                          <IonButton
-                            routerLink={`/warehouses/${warehouse.id}/edit`}
-                            fill="clear"
-                            size="small"
-                          >
-                            Edit
-                          </IonButton>
+                          <>
+                            <IonButton
+                              fill="clear"
+                              size="small"
+                              onClick={() => router.push(`/warehouses/${warehouse.id}/edit`)}
+                            >
+                              <IonIcon icon={createOutline} />
+                            </IonButton>
+                            <IonButton
+                              fill="clear"
+                              size="small"
+                              color="danger"
+                              onClick={() => {
+                                setDeleteWarehouseId(warehouse.id)
+                                setShowDeleteAlert(true)
+                              }}
+                            >
+                              <IonIcon icon={trashOutline} />
+                            </IonButton>
+                          </>
                         )}
-                      </div>
-                    </IonCardContent>
-                  </IonCard>
-                </IonCol>
-              </IonRow>
-            ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             
             {filteredWarehouses.length === 0 && !loading && (
-              <IonRow>
-                <IonCol size="12">
-                  <IonCard>
-                    <IonCardContent className="text-center py-8">
-                      <IonIcon icon={businessOutline} className="text-6xl text-gray-400 mb-4" />
-                      <h2 className="text-xl mb-2">No warehouses found</h2>
-                      <p className="text-gray-600 mb-4">
-                        {searchText 
-                          ? 'Try adjusting your search terms'
-                          : 'No warehouses have been created yet'
-                        }
-                      </p>
-                      {canManage && (
-                        <IonButton routerLink="/warehouses/create">
-                          Create First Warehouse
-                        </IonButton>
-                      )}
-                    </IonCardContent>
-                  </IonCard>
-                </IonCol>
-              </IonRow>
+              <div className="text-center py-8">
+                <IonIcon icon={businessOutline} className="text-6xl text-gray-400 mb-4" />
+                <h2 className="text-xl mb-2">No warehouses found</h2>
+                <p className="text-gray-600 mb-4">
+                  {searchText 
+                    ? 'Try adjusting your search terms'
+                    : 'No warehouses have been created yet'
+                  }
+                </p>
+                {canManage && (
+                  <IonButton onClick={() => router.push('/warehouses/create')}>
+                    Create First Warehouse
+                  </IonButton>
+                )}
+              </div>
             )}
-          </IonGrid>
+          </div>
         </div>
 
         {canManage && (
           <IonFab vertical="bottom" horizontal="end" slot="fixed">
-            <IonFabButton routerLink="/warehouses/create">
+            <IonFabButton onClick={() => router.push('/warehouses/create')}>
               <IonIcon icon={addOutline} />
             </IonFabButton>
           </IonFab>
         )}
+
+        <IonAlert
+          isOpen={showDeleteAlert}
+          onDidDismiss={() => setShowDeleteAlert(false)}
+          header="Delete Warehouse"
+          message="Are you sure you want to delete this warehouse? This action cannot be undone."
+          buttons={[
+            {
+              text: 'Cancel',
+              role: 'cancel'
+            },
+            {
+              text: 'Delete',
+              role: 'destructive',
+              handler: handleDelete
+            }
+          ]}
+        />
       </IonContent>
     </IonPage>
   )

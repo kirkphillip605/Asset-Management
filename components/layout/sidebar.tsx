@@ -52,6 +52,26 @@ export function Sidebar() {
 
   const handleNavigation = (path: string) => {
     router.push(path)
+    // Close the menu after navigation
+    const menu = document.querySelector('ion-menu') as any
+    if (menu) {
+      menu.close()
+    }
+  }
+
+  const handleLogout = () => {
+    signOut({ callbackUrl: '/login' })
+    const menu = document.querySelector('ion-menu') as any
+    if (menu) {
+      menu.close()
+    }
+  }
+
+  const closeMenu = () => {
+    const menu = document.querySelector('ion-menu') as any
+    if (menu) {
+      menu.close()
+    }
   }
 
   return (
@@ -60,11 +80,9 @@ export function Sidebar() {
         <IonToolbar color="primary">
           <IonTitle>Asset Manager</IonTitle>
           <IonButtons slot="end">
-            <IonMenuToggle>
-              <IonButton fill="clear" color="light">
-                <IonIcon icon={closeOutline} />
-              </IonButton>
-            </IonMenuToggle>
+            <IonButton fill="clear" color="light" onClick={closeMenu}>
+              <IonIcon icon={closeOutline} />
+            </IonButton>
           </IonButtons>
         </IonToolbar>
       </IonHeader>
@@ -91,24 +109,21 @@ export function Sidebar() {
 
         <IonList>
           {allowedItems.map((item) => (
-            <IonMenuToggle key={item.path} autoHide={true}>
-              <IonItem
-                button
-                onClick={() => handleNavigation(item.path)}
-                className={pathname === item.path ? 'bg-blue-50' : ''}
-              >
-                <IonIcon icon={item.icon} slot="start" />
-                <IonLabel>{item.label}</IonLabel>
-              </IonItem>
-            </IonMenuToggle>
+            <IonItem
+              key={item.path}
+              button
+              onClick={() => handleNavigation(item.path)}
+              className={pathname === item.path ? 'bg-blue-50' : ''}
+            >
+              <IonIcon icon={item.icon} slot="start" />
+              <IonLabel>{item.label}</IonLabel>
+            </IonItem>
           ))}
           
-          <IonMenuToggle autoHide={true}>
-            <IonItem button onClick={() => signOut()}>
-              <IonIcon icon={logOutOutline} slot="start" />
-              <IonLabel>Logout</IonLabel>
-            </IonItem>
-          </IonMenuToggle>
+          <IonItem button onClick={handleLogout}>
+            <IonIcon icon={logOutOutline} slot="start" />
+            <IonLabel>Logout</IonLabel>
+          </IonItem>
         </IonList>
       </IonContent>
     </IonMenu>

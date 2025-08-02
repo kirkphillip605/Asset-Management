@@ -2,13 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import {
   IonPage,
   IonContent,
-  IonCard,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardContent,
   IonItem,
   IonLabel,
   IonIcon,
@@ -24,14 +21,19 @@ import {
   IonGrid,
   IonRow,
   IonCol,
-  IonChip
+  IonAlert,
+  IonActionSheet
 } from '@ionic/react'
 import {
   cubeOutline,
   addOutline,
   qrCodeOutline,
   businessOutline,
-  pricetagOutline
+  pricetagOutline,
+  createOutline,
+  trashOutline,
+  eyeOutline,
+  ellipsisVerticalOutline
 } from 'ionicons/icons'
 import { Header } from '@/components/layout/header'
 import { Sidebar } from '@/components/layout/sidebar'
@@ -66,12 +68,17 @@ interface Asset {
 
 export default function AssetsPage() {
   const { data: session } = useSession()
+  const router = useRouter()
   const [assets, setAssets] = useState<Asset[]>([])
   const [filteredAssets, setFilteredAssets] = useState<Asset[]>([])
   const [searchText, setSearchText] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [conditionFilter, setConditionFilter] = useState<string>('all')
   const [loading, setLoading] = useState(true)
+  const [showDeleteAlert, setShowDeleteAlert] = useState(false)
+  const [deleteAssetId, setDeleteAssetId] = useState<string | null>(null)
+  const [showActionSheet, setShowActionSheet] = useState(false)
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
 
   const userRole = session?.user?.role || 'User'
   const canManage = ['Admin', 'Manager'].includes(userRole)
@@ -124,6 +131,17 @@ export default function AssetsPage() {
     event.detail.complete()
   }
 
+  const handleDelete = async () => {
+    if (!deleteAssetId) return
+    try {
+      await fetch(`/api/assets/${deleteAssetId}`, { method: 'DELETE' })
+      await fetchAssets()
+    } catch (error) {
+      console.error('Failed to delete asset:', error)
+    }
+    setDeleteAssetId(null)
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'available': return 'success'
@@ -142,6 +160,11 @@ export default function AssetsPage() {
       case 'poor': return 'danger'
       default: return 'medium'
     }
+  }
+
+  const handleAssetAction = (asset: Asset) => {
+    setSelectedAsset(asset)
+    setShowActionSheet(true)
   }
 
   return (
@@ -197,121 +220,142 @@ export default function AssetsPage() {
             </IonRow>
           </IonGrid>
 
-          <IonGrid>
-            {filteredAssets.map((asset) => (
-              <IonRow key={asset.id}>
-                <IonCol size="12">
-                  <IonCard>
-                    <IonCardHeader>
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <IonCardTitle>{asset.product.name}</IonCardTitle>
-                          <p className="text-sm text-gray-600">
-                            {asset.product.brand?.name} • {asset.product.type?.name}
-                          </p>
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <IonBadge color={getStatusColor(asset.status)}>
-                            {asset.status}
-                          </IonBadge>
-                          <IonBadge color={getConditionColor(asset.condition)}>
-                            {asset.condition}
-                          </IonBadge>
-                        </div>
-                      </div>
-                    </IonCardHeader>
-                    
-                    <IonCardContent>
-                      <div className="space-y-2">
+          {/* Assets Table */}
+          <div className="bg-white rounded-lg shadow overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Asset
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Location
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Price
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredAssets.map((asset) => (
+                    <tr key={asset.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <IonIcon icon={pricetagOutline} className="mr-2" />
-                          <span className="font-semibold">Tag: {asset.assetTag}</span>
+                          <div className="ml-4">
+                            <div className="text-sm font-medium text-gray-900">
+                              {asset.product.name}
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              Tag: {asset.assetTag} • {asset.product.brand?.name}
+                            </div>
+                          </div>
                         </div>
-                        
-                        {asset.serialNumber && (
-                          <div className="flex items-center">
-                            <IonIcon icon={qrCodeOutline} className="mr-2" />
-                            <span>S/N: {asset.serialNumber}</span>
-                          </div>
-                        )}
-                        
-                        <div className="flex items-center">
-                          <IonIcon icon={businessOutline} className="mr-2" />
-                          <span>{asset.warehouse.name}</span>
-                          {asset.location && <span> • {asset.location}</span>}
-                        </div>
-                        
-                        {asset.purchasePrice && (
-                          <div className="text-sm text-gray-600">
-                            Purchase Price: ${asset.purchasePrice.toFixed(2)}
-                          </div>
-                        )}
-                        
-                        {asset.notes && (
-                          <div className="text-sm text-gray-600">
-                            Notes: {asset.notes}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="flex gap-2 mt-4">
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <IonBadge color={getStatusColor(asset.status)}>
+                          {asset.status}
+                        </IonBadge>
+                        <br />
+                        <IonBadge color={getConditionColor(asset.condition)} className="mt-1">
+                          {asset.condition}
+                        </IonBadge>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {asset.warehouse.name}
+                        {asset.location && <><br /><span className="text-gray-500">{asset.location}</span></>}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {asset.purchasePrice ? `$${asset.purchasePrice.toFixed(2)}` : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <IonButton
-                          routerLink={`/assets/${asset.id}`}
-                          fill="outline"
+                          fill="clear"
                           size="small"
+                          onClick={() => router.push(`/assets/${asset.id}`)}
                         >
-                          View Details
+                          <IonIcon icon={eyeOutline} />
                         </IonButton>
-                        
                         {canManage && (
-                          <IonButton
-                            routerLink={`/assets/${asset.id}/edit`}
-                            fill="clear"
-                            size="small"
-                          >
-                            Edit
-                          </IonButton>
+                          <>
+                            <IonButton
+                              fill="clear"
+                              size="small"
+                              onClick={() => router.push(`/assets/${asset.id}/edit`)}
+                            >
+                              <IonIcon icon={createOutline} />
+                            </IonButton>
+                            <IonButton
+                              fill="clear"
+                              size="small"
+                              color="danger"
+                              onClick={() => {
+                                setDeleteAssetId(asset.id)
+                                setShowDeleteAlert(true)
+                              }}
+                            >
+                              <IonIcon icon={trashOutline} />
+                            </IonButton>
+                          </>
                         )}
-                      </div>
-                    </IonCardContent>
-                  </IonCard>
-                </IonCol>
-              </IonRow>
-            ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             
             {filteredAssets.length === 0 && !loading && (
-              <IonRow>
-                <IonCol size="12">
-                  <IonCard>
-                    <IonCardContent className="text-center py-8">
-                      <IonIcon icon={cubeOutline} className="text-6xl text-gray-400 mb-4" />
-                      <h2 className="text-xl mb-2">No assets found</h2>
-                      <p className="text-gray-600 mb-4">
-                        {searchText || statusFilter !== 'all' || conditionFilter !== 'all'
-                          ? 'Try adjusting your search terms or filters'
-                          : 'No assets have been added yet'
-                        }
-                      </p>
-                      {canManage && (
-                        <IonButton routerLink="/assets/create">
-                          Add First Asset
-                        </IonButton>
-                      )}
-                    </IonCardContent>
-                  </IonCard>
-                </IonCol>
-              </IonRow>
+              <div className="text-center py-8">
+                <IonIcon icon={cubeOutline} className="text-6xl text-gray-400 mb-4" />
+                <h2 className="text-xl mb-2">No assets found</h2>
+                <p className="text-gray-600 mb-4">
+                  {searchText || statusFilter !== 'all' || conditionFilter !== 'all'
+                    ? 'Try adjusting your search terms or filters'
+                    : 'No assets have been added yet'
+                  }
+                </p>
+                {canManage && (
+                  <IonButton routerLink="/assets/create">
+                    Add First Asset
+                  </IonButton>
+                )}
+              </div>
             )}
-          </IonGrid>
+          </div>
         </div>
 
         {canManage && (
           <IonFab vertical="bottom" horizontal="end" slot="fixed">
-            <IonFabButton routerLink="/assets/create">
+            <IonFabButton onClick={() => router.push('/assets/create')}>
               <IonIcon icon={addOutline} />
             </IonFabButton>
           </IonFab>
         )}
+
+        <IonAlert
+          isOpen={showDeleteAlert}
+          onDidDismiss={() => setShowDeleteAlert(false)}
+          header="Delete Asset"
+          message="Are you sure you want to delete this asset? This action cannot be undone."
+          buttons={[
+            {
+              text: 'Cancel',
+              role: 'cancel'
+            },
+            {
+              text: 'Delete',
+              role: 'destructive',
+              handler: handleDelete
+            }
+          ]}
+        />
       </IonContent>
     </IonPage>
   )
